@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">onelaog</string>
+    <string name="title_activity_main">onelaog</string>
+    <string name="package_name">com.onelaog.app</string>
+    <string name="custom_url_scheme">com.onelaog.app</string>
+</resources>
