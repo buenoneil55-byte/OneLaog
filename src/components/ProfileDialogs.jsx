@@ -59,12 +59,16 @@ export default function ProfileDialogs({ activeDialog, onClose, user, onUserUpda
         <button className="btn-primary sheet-submit" onClick={() => save({ full_name: fullName })}>Save</button>
       </Dialog>
       <Dialog title="Payment Method" open={activeDialog === 'paymentMethod'} onClose={onClose}>
-        {['COD','GCash','Card'].map((p) => (
-          <button key={p} className={`radio-row ${payment === p ? 'active' : ''}`} onClick={() => setPayment(p)}>
-            {p === 'COD' ? 'Cash on Delivery' : p === 'Card' ? 'Credit/Debit Card' : p}
-            <span className={`radio ${payment === p ? 'active' : ''}`} />
-          </button>
-        ))}
+        {['COD', 'GCash'].map((p) => (
+  <button
+    key={p}
+    className={`radio-row ${payment === p ? 'active' : ''}`}
+    onClick={() => setPayment(p)}
+  >
+    {p === 'COD' ? 'Cash on Delivery' : p}
+    <span className={`radio ${payment === p ? 'active' : ''}`} />
+  </button>
+))}
         <button className="btn-primary sheet-submit" onClick={() => save({ preferred_payment: payment })}>Save</button>
       </Dialog>
       <Dialog title="Delivery Address" open={activeDialog === 'deliveryAddress'} onClose={onClose}>

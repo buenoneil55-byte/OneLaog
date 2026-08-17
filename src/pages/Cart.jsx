@@ -47,36 +47,65 @@ export default function Cart() {
 
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
   const deliveryFee = items.length > 0 ? 5.0 : 0
-  const tax = subtotal * 0.02
-  const total = subtotal + deliveryFee + tax
+  const total = subtotal + deliveryFee
   const hasAddress = address.trim().length > 0
   const hasPhone = phone.trim().length >= 10
   const canCheckout = items.length > 0 && hasAddress && hasPhone && !placing
 
   const placeOrder = async () => {
     if (!canCheckout) return
+    // Stock check
+    for (const item of items) {
+      const { data: prod } = await supabase.from('products').select('stock').eq('id', item.product_id).single()
+      if (!prod || (prod.stock || 0) < item.quantity) {
+        toast({ title: `Only ${prod?.stock || 0} kg of ${item.product_name} left`, variant: 'destructive' })
+        return
+      }
+    }
     setPlacing(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (profile?.delivery_address !== address) await updateMe({ delivery_address: address })
-    if (profile?.phone !== phone) await updateMe({ phone })
-    const orderNum = 'ORD' + Date.now().toString().slice(-6)
-    await supabase.from('orders').insert({
-      order_number: orderNum, buyer_id: user.id, buyer_name: profile?.full_name || 'Buyer',
-      buyer_phone: phone,
-      items: items.map((i) => ({ product_id: i.product_id, product_name: i.product_name, image_url: i.image_url, price: i.price, quantity: i.quantity, unit: i.unit })),
-      delivery_address: address, subtotal, delivery_fee: deliveryFee, tax, total, status: 'Pending', payment_method: payment,
-    })
-    await supabase.from('cart_items').delete().eq('buyer_id', user.id)
-    await supabase.from('notifications').insert({ title: 'New Order Received', message: `Order #${orderNum} from ${profile?.full_name || 'Buyer'} — ₱${total.toFixed(2)}`, type: 'new_order', order_number: orderNum, buyer_name: profile?.full_name || 'Buyer', read: false })
-    setPlacing(false)
-    toast({ title: 'Order placed!', description: `Order #${orderNum}` })
-    navigate('/orders')
-  }
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (profile?.delivery_address !== address) await updateMe({ delivery_address: address })
+      if (profile?.phone !== phone) await updateMe({ phone })
 
+      const orderNum = 'ORD' + Date.now().toString().slice(-6)
+      const tax = 0  // ← ADD THIS LINE (was missing, caused ReferenceError)
+
+      const { error: orderError } = await supabase.from('orders').insert({
+        order_number: orderNum, buyer_id: user.id, buyer_name: profile?.full_name || 'Buyer',
+        buyer_phone: phone,
+        items: items.map((i) => ({ product_id: i.product_id, product_name: i.product_name, image_url: i.image_url, price: i.price, quantity: i.quantity, unit: i.unit })),
+        delivery_address: address, subtotal, delivery_fee: deliveryFee, tax, total, status: 'Pending', payment_method: payment,
+      })
+
+      if (orderError) {
+        toast({ title: 'Failed to place order', description: orderError.message, variant: 'destructive' })
+        return
+      }
+
+      for (const item of items) {
+        const { data: prod } = await supabase.from('products').select('id, stock, available').eq('id', item.product_id).single()
+        if (!prod) continue
+        const newStock = Math.max(0, (prod.stock || 0) - item.quantity)
+        const updates = { stock: newStock }
+        if (newStock <= 0) updates.available = false
+        await supabase.from('products').update(updates).eq('id', item.product_id)
+      }
+
+      await supabase.from('cart_items').delete().eq('buyer_id', user.id)
+      await supabase.from('notifications').insert({ title: 'New Order Received', message: `Order #${orderNum} from ${profile?.full_name || 'Buyer'} — ₱${total.toFixed(2)}`, type: 'new_order', order_number: orderNum, buyer_name: profile?.full_name || 'Buyer', read: false })
+
+      toast({ title: 'Order placed!', description: `Order #${orderNum}` })
+      navigate('/orders')
+    } catch (err) {
+      toast({ title: 'Something went wrong', description: err.message, variant: 'destructive' })
+    } finally {
+      setPlacing(false)
+    }
+  }
   const paymentOptions = [
     { value: 'COD', label: t('cart.cod'), icon: Banknote },
     { value: 'GCash', label: t('cart.gcash'), icon: Wallet },
-    { value: 'Card', label: t('cart.card'), icon: CreditCard },
   ]
 
   if (loading) return <div className="spinner-screen"><div className="spinner" /></div>
@@ -150,7 +179,6 @@ export default function Cart() {
           <h2 className="card-title">{t('cart.orderInfo')}</h2>
           <div className="info-row"><span>{t('cart.subtotal')}</span><span>₱{subtotal.toFixed(2)}</span></div>
           <div className="info-row"><span>{t('cart.delivery')}</span><span>₱{deliveryFee.toFixed(2)}</span></div>
-          <div className="info-row"><span>{t('cart.tax')}</span><span>₱{tax.toFixed(2)}</span></div>
           <div className="info-row total-row"><span>{t('cart.total')}</span><strong>₱{total.toFixed(2)}</strong></div>
         </div>
 

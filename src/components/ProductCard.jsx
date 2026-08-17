@@ -15,6 +15,7 @@ export default function ProductCard({ product, onAddToCart, onOrder }) {
       </div>
       <p className="product-name">{product.name}</p>
       <p className="product-price">₱{Number(product.price).toFixed(2)} <span>{product.unit}</span></p>
+      <p className="tiny muted">{outOfStock ? 'Out of stock' : `${product.stock} in stock`}</p>
       <div className="product-actions">
         <button className="btn-add-cart" disabled={outOfStock} onClick={() => onAddToCart(product)}>
           <ShoppingCart size={14} /> Add

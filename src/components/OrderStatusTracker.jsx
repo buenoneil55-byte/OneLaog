@@ -3,7 +3,7 @@ import { Check, Truck, Package } from 'lucide-react'
 
 const steps = [
   { key: 'Pending', label: 'Pending', icon: Package },
-  { key: 'Confirmed', label: 'Confirmed', icon: Check },
+  { key: 'Preparing', label: 'Preparing', icon: Check },
   { key: 'Delivering', label: 'Delivering', icon: Truck },
   { key: 'Done', label: 'Done', icon: Check },
 ]

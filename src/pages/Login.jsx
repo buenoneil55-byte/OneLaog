@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { LogIn, Mail, Lock, Loader2 } from 'lucide-react'
 import AuthLayout from '@/components/AuthLayout'
 import GoogleIcon from '@/components/GoogleIcon'
@@ -8,33 +8,27 @@ import { useAuth } from '@/lib/AuthContext'
 
 export default function Login() {
   const { login, loginWithGoogle } = useAuth()
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  setLoading(true);
-  setError("");
-
-  const res = await login(email, password)
-
-console.log("RES:", res)
-console.log("success:", res?.success)
-console.log("message:", res?.message)
-console.log("typeof message:", typeof res?.message)
-
-  setLoading(false);
-
-  if (!res.success) {
-    setError(res.message);
-    return;
+  const redirectByRole = (role) => {
+    if (role === 'admin') window.location.href = '/admin'
+    else if (role === 'rider') window.location.href = '/rider'
+    else window.location.href = '/'
   }
 
-  window.location.href = "/";
-};
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    const res = await login(email, password)
+    setLoading(false)
+    if (!res.success) { setError(res.message); return }
+    redirectByRole(res.role)
+  }
 
   return (
     <AuthLayout icon={LogIn} title="Welcome back" subtitle="Log in to your account"
