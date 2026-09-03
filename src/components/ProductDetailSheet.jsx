@@ -5,6 +5,8 @@ export default function ProductDetailSheet({ product, open, onOpenChange, onAddT
   const [qty, setQty] = useState(1)
   if (!open || !product) return null
   const outOfStock = !product.available || product.stock <= 0
+  const maxStock = product.stock || 0
+  const overStock = qty > maxStock
   const presets = [0.5, 1, 1.5, 2, 3]
 
   const submit = () => {
@@ -28,11 +30,11 @@ export default function ProductDetailSheet({ product, open, onOpenChange, onAddT
           <div className="qty-controls">
             <button className="qty-btn" onClick={() => setQty(Math.max(0.25, Math.round((qty - 0.25) * 100) / 100))}>-</button>
             <span className="qty-value">{qty} kg</span>
-            <button className="qty-btn green" onClick={() => setQty(Math.round((qty + 0.25) * 100) / 100)}>+</button>
+            <button className="qty-btn green" onClick={() => setQty(Math.min(maxStock, Math.round((qty + 0.25) * 100) / 100))}>+</button>
           </div>
           <div className="qty-presets">
             {presets.map((p) => (
-              <button key={p} className={`preset ${qty === p ? 'active' : ''}`} onClick={() => setQty(p)}>{p} kg</button>
+              <button key={p} className={`preset ${qty === p ? 'active' : ''}`} disabled={p > maxStock} onClick={() => setQty(p)}>{p} kg</button>
             ))}
           </div>
         </div>
@@ -40,7 +42,8 @@ export default function ProductDetailSheet({ product, open, onOpenChange, onAddT
           <span>Total</span>
           <strong>₱{(product.price * qty).toFixed(2)}</strong>
         </div>
-        <button className="btn-primary sheet-submit" disabled={outOfStock} onClick={submit}>
+        {overStock && <p className="tiny" style={{ color: '#ef4444' }}>Only {maxStock} kg left in stock</p>}
+        <button className="btn-primary sheet-submit" disabled={outOfStock || overStock} onClick={submit}>
           <ShoppingCart size={16} /> Add to Cart
         </button>
       </div>

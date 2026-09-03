@@ -14,6 +14,7 @@ import Cart from './pages/Cart'
 import Orders from './pages/Orders'
 import History from './pages/History'
 import Profile from './pages/Profile'
+import Chat from './pages/Chat'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminProducts from './pages/AdminProducts'
 import AdminProductForm from './pages/AdminProductForm'
@@ -21,6 +22,8 @@ import AdminOrders from './pages/AdminOrders'
 import AdminSalesReport from './pages/AdminSalesReport'
 import AdminMembers from './pages/AdminMembers'
 import AdminSettings from './pages/AdminSettings'
+import AdminChats from './pages/AdminChats'
+import RiderDashboard from './pages/RiderDashboard'
 
 function NotFound() { return <div className="center-screen"><h2>Page not found</h2></div> }
 
@@ -43,6 +46,7 @@ export default function App() {
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/history" element={<History />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/chat" element={<Chat />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/products" element={<AdminProducts />} />
                 <Route path="/admin/products/new" element={<AdminProductForm />} />
@@ -50,7 +54,9 @@ export default function App() {
                 <Route path="/admin/orders" element={<AdminOrders />} />
                 <Route path="/admin/sales-report" element={<AdminSalesReport />} />
                 <Route path="/admin/members" element={<AdminMembers />} />
+                <Route path="/admin/chats" element={<AdminChats />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
+                <Route path="/rider" element={<RiderDashboard />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

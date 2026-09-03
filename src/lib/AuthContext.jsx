@@ -43,61 +43,23 @@ export function AuthProvider({ children }) {
     return { data, error }
   }
 
-   const login = async (email, password) => {
-  console.log("LOGIN FUNCTION CALLED");
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { success: false, message: error.message };
 
-  if (error) {
-  console.log("FULL AUTH ERROR:");
-  console.dir(error);
-  console.log("message:", error.message);
-  console.log("status:", error.status);
-  console.log("name:", error.name);
-  console.log("error:", JSON.stringify(error, null, 2));
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('banned, role')
+      .eq('id', data.user.id)
+      .single();
 
-  return {
-    success: false,
-    message: error.message,
+    if (profile?.banned) {
+      try { await supabase.auth.signOut(); } catch (e) { }
+      return { success: false, message: 'Your account has been banned. Please contact the administrator.' };
+    }
+
+    return { success: true, role: profile?.role || 'user' };
   };
-}
-
-  // Check if the user is banned
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("banned")
-    .eq("id", data.user.id)
-    .single();
-
-  if (profileError) {
-    await supabase.auth.signOut();
-    return {
-      success: false,
-      message: "Unable to verify your account."
-    };
-  }
-
-  if (profile?.banned) {
-  try {
-    await supabase.auth.signOut();
-  } catch (e) {
-    console.error(e);
-  }
-
-  return {
-    success: false,
-    message: "Your account has been banned. Please contact the administrator."
-  };
-}
-
-  return {
-    success: true,
-    data
-  };
-};
-
   const register = (email, password, fullName, phone) =>
     supabase.auth.signUp({
       email, password,

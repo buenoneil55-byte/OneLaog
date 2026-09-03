@@ -37,10 +37,17 @@ export default function CategoryPage() {
 
   const addToCart = async (product, qty = 1) => {
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: existing } = await supabase.from('cart_items').select('*').eq('buyer_id', user.id).eq('product_id', product.id).eq('product_name', product.name)
+    const productName = product.name  // ← ADD THIS
+    const { data: existing } = await supabase.from('cart_items').select('*').eq('buyer_id', user.id).eq('product_id', product.id).eq('product_name', productName)
+    const inCart = existing?.length ? existing[0].quantity : 0
+    if ((product.stock || 0) < inCart + qty) {
+      toast({ title: `Only ${product.stock || 0} kg of ${product.name} in stock`, variant: 'destructive' })
+      return
+    }
     if (existing?.length) await supabase.from('cart_items').update({ quantity: Math.round((existing[0].quantity + qty) * 100) / 100 }).eq('id', existing[0].id)
-    else await supabase.from('cart_items').insert({ buyer_id: user.id, product_id: product.id, product_name: product.name, image_url: product.image_url || '', price: product.price, quantity: qty, unit: product.unit || 'per Kilo' })
+    else await supabase.from('cart_items').insert({ buyer_id: user.id, product_id: product.id, product_name: productName, image_url: product.image_url || '', price: product.price, quantity: qty, unit: product.unit || 'per Kilo' })
     setCartCount((p) => Math.round((p + qty) * 100) / 100)
+    await supabase.from('notifications').insert({ title: 'Added to Cart', message: `${productName} ×${qty}`, type: 'cart', read: false })
     toast({ title: t('home.addedToCart') })
   }
 
@@ -65,11 +72,11 @@ export default function CategoryPage() {
       </header>
       <div className="section">
         {loading ? <div className="spinner-screen"><div className="spinner" /></div> :
-         filtered.length === 0 ? <p className="muted center-text">{t('home.noProducts')}</p> : (
-          <div className="product-grid">
-            {filtered.map((p) => <ProductCard key={p.id} product={p} onAddToCart={addToCart} onOrder={setOrderProduct} />)}
-          </div>
-        )}
+          filtered.length === 0 ? <p className="muted center-text">{t('home.noProducts')}</p> : (
+            <div className="product-grid">
+              {filtered.map((p) => <ProductCard key={p.id} product={p} onAddToCart={addToCart} onOrder={setOrderProduct} />)}
+            </div>
+          )}
       </div>
       <ProductDetailSheet product={orderProduct} open={!!orderProduct} onOpenChange={(o) => !o && setOrderProduct(null)} onAddToCart={addToCart} />
       <BottomNav />

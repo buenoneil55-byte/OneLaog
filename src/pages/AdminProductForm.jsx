@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Upload, Plus, X } from 'lucide-react'
 import { supabase } from '@/api/supabaseClient'
 import { useToast } from '@/components/useToast'
+import AdminLayout from '@/components/AdminLayout'
 
 const categories = ['Vegetables', 'Meat', 'Fruits', 'Rice']
 
@@ -55,44 +56,42 @@ export default function AdminProductForm() {
   if (loading) return <div className="spinner-screen"><div className="spinner" /></div>
 
   return (
-    <div className="page">
-      <header className="sticky-header"><div className="header-row"><button className="icon-btn" onClick={() => navigate(-1)}><ArrowLeft size={20} /></button><h1 className="header-title">Manage Product</h1></div></header>
-      <div className="section">
-        <div className="card">
-          <label className="upload-area">
-            {form.image_url ? <img src={form.image_url} className="upload-preview" /> : <div className="upload-placeholder"><Upload size={24} /><p>{uploading ? 'Uploading...' : 'Upload Image'}</p></div>}
-            <input type="file" accept="image/*" onChange={uploadImage} hidden />
+    <AdminLayout title={isEdit ? 'Edit Product' : 'Add Product'}>
+      <button className="web-back-link" onClick={() => navigate('/admin/products')}><ArrowLeft size={16} /> Back to Products</button>
+      <div className="card">
+        <label className="upload-area">
+          {form.image_url ? <img src={form.image_url} className="upload-preview" /> : <div className="upload-placeholder"><Upload size={24} /><p>{uploading ? 'Uploading...' : 'Upload Image'}</p></div>}
+          <input type="file" accept="image/*" onChange={uploadImage} hidden />
+        </label>
+      </div>
+      <div className="card form-card">
+        <label className="form-label">Product Name<input className="input" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} /></label>
+        <label className="form-label">Product Nickname<input className="input" value={form.nickname} onChange={(e) => setForm((p) => ({ ...p, nickname: e.target.value }))} /></label>
+        <div className="form-grid2">
+          <label className="form-label">Price<input type="number" className="input" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} /></label>
+          <label className="form-label">Category
+            <select className="input" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}>
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
           </label>
         </div>
-        <div className="card form-card">
-          <label className="form-label">Product Name<input className="input" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} /></label>
-          <label className="form-label">Product Nick Name<input className="input" value={form.nickname} onChange={(e) => setForm((p) => ({ ...p, nickname: e.target.value }))} /></label>
-          <div className="form-grid2">
-            <label className="form-label">Price per kg<input type="number" className="input" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} /></label>
-            <label className="form-label">Category
-              <select className="input" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}>
-                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </label>
-          </div>
-          <label className="form-label">Stock (kg)<input type="number" className="input" value={form.stock} onChange={(e) => setForm((p) => ({ ...p, stock: e.target.value }))} /><p className="tiny muted">Set to 0 to mark as "Out of Stock"</p></label>
-          <div className="row between"><label className="form-label">Variants</label><button className="link-btn green" onClick={addVariant}><Plus size={12} /> Add Variant</button></div>
-          {form.variants.length === 0 ? <p className="tiny muted">No variants. Add different cuts or sizes.</p> :
-            form.variants.map((v, i) => (
-              <div key={i} className="variant-row">
-                <input className="input" placeholder="Variant name" value={v.name} onChange={(e) => updateVariant(i, 'name', e.target.value)} />
-                <input className="input small" type="number" placeholder="Price" value={v.price} onChange={(e) => updateVariant(i, 'price', e.target.value)} />
-                <button className="trash-btn" onClick={() => removeVariant(i)}><X size={16} /></button>
-              </div>
-            ))}
-          <div className="row between switch-row">
-            <div><p className="medium">Available for ordering</p><p className="tiny muted">Toggle off to hide from menu</p></div>
-            <label className="switch"><input type="checkbox" checked={form.available} onChange={(e) => setForm((p) => ({ ...p, available: e.target.checked }))} /><span className="slider" /></label>
-          </div>
+        <label className="form-label">Stock<input type="number" className="input" value={form.stock} onChange={(e) => setForm((p) => ({ ...p, stock: e.target.value }))} /><p className="tiny muted">Set to 0 to mark as "Out of Stock"</p></label>
+        <div className="row between"><label className="form-label">Variants</label><button className="link-btn green" onClick={addVariant}><Plus size={12} /> Add Variant</button></div>
+        {form.variants.length === 0 ? <p className="tiny muted">No variants. Add different cuts or sizes.</p> :
+          form.variants.map((v, i) => (
+            <div key={i} className="variant-row">
+              <input className="input" placeholder="Variant name" value={v.name} onChange={(e) => updateVariant(i, 'name', e.target.value)} />
+              <input className="input small" type="number" placeholder="Price" value={v.price} onChange={(e) => updateVariant(i, 'price', e.target.value)} />
+              <button className="trash-btn" onClick={() => removeVariant(i)}><X size={16} /></button>
+            </div>
+          ))}
+        <div className="row between switch-row">
+          <div><p className="medium">Available for ordering</p><p className="tiny muted">Toggle off to hide from menu</p></div>
+          <label className="switch"><input type="checkbox" checked={form.available} onChange={(e) => setForm((p) => ({ ...p, available: e.target.checked }))} /><span className="slider" /></label>
         </div>
-        <button className="btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving...' : isEdit ? 'Update' : 'Add Product'}</button>
-        <button className="btn-outline" onClick={() => navigate(-1)}>Cancel</button>
       </div>
-    </div>
+      <button className="btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving...' : isEdit ? 'Update' : 'Add Product'}</button>
+      <button className="btn-outline" onClick={() => navigate('/admin/products')}>Cancel</button>
+    </AdminLayout>
   )
 }

@@ -40,12 +40,18 @@ export default function Home() {
     const price = variant ? variant.price : product.price
     const productName = variant ? `${product.name} (${variant.name})` : product.name
     const { data: existing } = await supabase.from('cart_items').select('*').eq('buyer_id', user.id).eq('product_id', product.id).eq('product_name', productName)
+    const inCart = existing?.length ? existing[0].quantity : 0
+    if ((product.stock || 0) < inCart + qty) {
+      toast({ title: `Only ${product.stock || 0} kg of ${product.name} in stock`, variant: 'destructive' })
+      return
+    }
     if (existing && existing.length > 0) {
       await supabase.from('cart_items').update({ quantity: Math.round((existing[0].quantity + qty) * 100) / 100 }).eq('id', existing[0].id)
     } else {
       await supabase.from('cart_items').insert({ buyer_id: user.id, product_id: product.id, product_name: productName, image_url: product.image_url || '', price, quantity: qty, unit: product.unit || 'per Kilo' })
     }
     setCartCount((p) => Math.round((p + qty) * 100) / 100)
+    await supabase.from('notifications').insert({ title: 'Added to Cart', message: `${productName} ×${qty}`, type: 'cart', read: false })
     toast({ title: t('home.addedToCart'), description: `${productName} ×${qty}kg` })
   }
 
@@ -55,6 +61,9 @@ export default function Home() {
 
   if (profile?.role === 'admin') {
     return <div className="center-screen"><p className="muted">You're logged in as admin.</p><Link to="/admin" className="btn-primary">Go to Admin Dashboard</Link></div>
+  }
+  if (profile?.role === 'rider') {
+    return <div className="center-screen"><p className="muted">You're logged in as a rider.</p><Link to="/rider" className="btn-primary">Go to Rider Dashboard</Link></div>
   }
 
   return (
