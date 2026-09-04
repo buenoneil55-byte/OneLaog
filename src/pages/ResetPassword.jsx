@@ -1,16 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Lock, AlertTriangle, Loader2 } from 'lucide-react'
 import { supabase } from '@/api/supabaseClient'
 import AuthLayout from '@/components/AuthLayout'
 import PasswordInput from '@/components/PasswordInput'
 
 export default function ResetPassword() {
-  const [params] = useSearchParams()
-  const accessToken = params.get('access_token')
-  const refreshToken = params.get('refresh_token')
-  const type = params.get('type')
-
   const [ready, setReady] = useState(false)
   const [pw, setPw] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -18,15 +13,17 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // When Supabase redirects after clicking the email link, it includes access_token and refresh_token
-    if (accessToken && refreshToken) {
-      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-        .then(() => setReady(true))
-        .catch(() => setError('Invalid or expired reset link'))
-    } else if (type === 'recovery') {
-      setReady(true)
-    }
-  }, [accessToken, refreshToken, type])
+    // Supabase automatically detects the recovery token in the URL hash
+    // (#access_token=...&type=recovery) and establishes the session.
+    // We just check if a session exists — no need to parse URL params.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setReady(true)
+      } else {
+        setError('Invalid or expired reset link')
+      }
+    })
+  }, [])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -35,21 +32,27 @@ export default function ResetPassword() {
     if (pw.length < 6) { setError('Password must be at least 6 characters'); return }
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ password: pw })
+    if (error) {
+      setLoading(false)
+      setError(error.message)
+      return
+    }
+    // Sign out so the user can log in fresh with their new password
+    await supabase.auth.signOut()
     setLoading(false)
-    if (error) setError(error.message)
-    else window.location.href = '/login'
+    window.location.href = '/login'
   }
 
-  if (!accessToken && !type) {
+  if (error) {
     return (
-      <AuthLayout icon={AlertTriangle} title="Invalid reset link" subtitle="This reset link is missing"
+      <AuthLayout icon={AlertTriangle} title="Invalid reset link" subtitle={error}
         footer={<Link to="/forgot-password" className="link">Request a new link</Link>}>
-        <p className="center-text">The link is incomplete. Please request a new reset email.</p>
+        <p className="center-text">The link is incomplete or expired. Please request a new reset email.</p>
       </AuthLayout>
     )
   }
 
-  if (!ready && accessToken) {
+  if (!ready) {
     return <div className="spinner-screen"><div className="spinner" /></div>
   }
 
