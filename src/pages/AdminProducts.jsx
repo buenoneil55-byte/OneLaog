@@ -5,11 +5,14 @@ import { supabase } from '@/api/supabaseClient'
 import { useToast } from '@/components/useToast'
 import AdminLayout from '@/components/AdminLayout'
 
+const categories = ['all', 'Vegetables', 'Meat', 'Fruits', 'Rice']
+
 export default function AdminProducts() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const [products, setProducts] = useState([])
   const [search, setSearch] = useState('')
+  const [tab, setTab] = useState('all')
   const [loading, setLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
@@ -33,7 +36,7 @@ export default function AdminProducts() {
     setDeleteTarget(null)
   }
 
-  const filtered = products.filter((p) => p.name?.toLowerCase().includes(search.toLowerCase()))
+  const filtered = products.filter((p) => (tab === 'all' || p.category === tab) && p.name?.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <AdminLayout title="Manage Products">
@@ -45,7 +48,16 @@ export default function AdminProducts() {
         </div>
       </div>
 
+      <div className="tabs">
+        {categories.map((c) => (
+          <button key={c} className={`tab ${tab === c ? 'active' : ''}`} onClick={() => setTab(c)}>
+            {c === 'all' ? 'All' : c}
+          </button>
+        ))}
+      </div>
+
       {loading ? <div className="spinner-screen"><div className="spinner" /></div> :
+        filtered.length === 0 ? <p className="muted center-text">No products in this category</p> :
         filtered.map((p) => (
           <div key={p.id} className="card admin-product-row">
             <div className="list-thumb">{p.image_url ? <img src={p.image_url} /> : <div className="product-img-placeholder" />}</div>

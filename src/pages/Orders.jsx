@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Clock, XCircle } from 'lucide-react'
+import { Clock, XCircle, Bike } from 'lucide-react'
 import { supabase } from '@/api/supabaseClient'
 import { useLang } from '@/lib/LanguageContext'
 import { useToast } from '@/components/useToast'
@@ -52,8 +52,16 @@ export default function Orders() {
                   <h3 className="order-num">Order #{order.order_number || order.id?.slice(-6)}</h3>
                   <span className={`status-pill ${order.status}`}>{order.status}</span>
                 </div>
-                {tab === 'history' && <p className="tiny muted">{new Date(order.created_at).toLocaleString()}</p>}
-                {order.status !== 'Done' && order.status !== 'Cancelled' && (
+                  {tab === 'history' && <p className="tiny muted">{new Date(order.created_at).toLocaleString()}</p>}
+            {order.rider_name && (
+              <div className="detail-row" style={{ marginTop: 6 }}>
+                <Bike size={14} className="green-icon" />
+                <span className="tiny muted">Rider:</span>
+                <span className="medium">{order.rider_name}</span>
+              </div>
+            )}
+            {order.status !== 'Done' && order.status !== 'Cancelled' && (
+
                   <div className="tracker-wrap"><OrderStatusTracker status={order.status} /></div>
                 )}
                 <div className="order-items">

@@ -26,13 +26,18 @@ export default function AdminProductForm() {
     }
   }, [id])
 
-  const uploadImage = async (e) => {
+    const uploadImage = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
     const ext = file.name.split('.').pop()
     const path = `${Date.now()}.${ext}`
-    await supabase.storage.from('products').upload(path, file)
+    const { error } = await supabase.storage.from('products').upload(path, file)
+    if (error) {
+      toast({ title: 'Upload failed: ' + error.message, variant: 'destructive' })
+      setUploading(false)
+      return
+    }
     const { data } = supabase.storage.from('products').getPublicUrl(path)
     setForm((p) => ({ ...p, image_url: data.publicUrl }))
     setUploading(false)

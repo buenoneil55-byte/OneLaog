@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Clock, Star } from 'lucide-react'
+import { Clock, Star, Bike } from 'lucide-react'
 import { supabase } from '@/api/supabaseClient'
 import { useLang } from '@/lib/LanguageContext'
 import BottomNav from '@/components/BottomNav'
@@ -40,6 +40,13 @@ export default function History() {
                   <span className={`status-pill ${order.status}`}>{order.status}</span>
                 </div>
                 <p className="tiny muted">{new Date(order.created_at).toLocaleString()}</p>
+                {order.rider_name && (
+                  <div className="detail-row" style={{ marginTop: 6 }}>
+                    <Bike size={14} className="green-icon" />
+                    <span className="tiny muted">Rider:</span>
+                    <span className="medium">{order.rider_name}</span>
+                  </div>
+                )}
                 <div className="order-items">
                   {order.items?.map((item, i) => {
                     const r = reviewed[`${order.id}_${item.product_id}`]

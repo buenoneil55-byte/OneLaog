@@ -1,7 +1,7 @@
 import React from 'react'
 import { ShoppingCart } from 'lucide-react'
 
-export default function ProductCard({ product, onAddToCart, onOrder }) {
+export default function ProductCard({ product, onOrder }) {
   const outOfStock = !product.available || product.stock <= 0
   return (
     <div className="product-card">
@@ -17,11 +17,8 @@ export default function ProductCard({ product, onAddToCart, onOrder }) {
       <p className="product-price">₱{Number(product.price).toFixed(2)} <span>{product.unit}</span></p>
       <p className="tiny muted">{outOfStock ? 'Out of stock' : `${product.stock} in stock`}</p>
       <div className="product-actions">
-        <button className="btn-add-cart" disabled={outOfStock} onClick={() => onAddToCart(product)}>
-          <ShoppingCart size={14} /> Add
-        </button>
-        <button className="btn-order" disabled={outOfStock} onClick={() => onOrder(product)}>
-          Order Now
+        <button className="btn-order" disabled={outOfStock} onClick={() => onOrder(product)} style={{ width: '100%' }}>
+          <ShoppingCart size={14} /> Order Now
         </button>
       </div>
     </div>

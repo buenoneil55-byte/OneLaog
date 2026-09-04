@@ -57,6 +57,14 @@ export default function AdminDashboard() {
     return data
   })()
 
+  const timeAgo = (d) => {
+  const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000)
+  if (s < 60) return 'just now'
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return `${Math.floor(s / 86400)}d ago`
+}
+
   if (loading) return <div className="spinner-screen"><div className="spinner" /></div>
 
   return (
@@ -64,15 +72,26 @@ export default function AdminDashboard() {
       <div className="web-stats-grid">
         <div className="web-stat-card"><p className="stat-label">Total Sales</p><p className="web-stat-value">₱{totalSales.toLocaleString('en', { minimumFractionDigits: 2 })}</p></div>
         <div className="web-stat-card yellow"><p className="stat-label">Pending Orders</p><p className="web-stat-value">{pendingCount} Pending</p></div>
+        <div className="web-stat-card"><p className="stat-label">Products</p><p className="web-stat-value">{products.length}</p></div>
+<div className="web-stat-card"><p className="stat-label">Members</p><p className="web-stat-value">{users.length}</p></div>
       </div>
 
       {notifications.length > 0 && (
         <div className="card">
           <div className="row"><Bell size={14} className="green-icon" /><h2 className="card-title">New Notifications</h2><span className="notif-count">{notifications.length}</span></div>
           <div className="notif-list">
-            {notifications.map((n) => (
-              <div key={n.id} className="notif-item"><div className="notif-dot" /><div><p className="medium">{n.title}</p><p className="tiny muted truncate">{n.message}</p></div></div>
-            ))}
+{notifications.map((n) => (
+  <div key={n.id} className="notif-item">
+    <div className="notif-dot" />
+    <div className="flex-1">
+      <div className="row between">
+        <p className="medium bold">{n.title}</p>
+        <span className="tiny muted">{timeAgo(n.created_at)}</span>
+      </div>
+      <p className="tiny muted">{n.message}</p>
+    </div>
+  </div>
+))}
           </div>
         </div>
       )}
