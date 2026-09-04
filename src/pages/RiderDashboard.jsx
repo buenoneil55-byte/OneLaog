@@ -38,13 +38,27 @@ export default function RiderDashboard() {
     return () => { supabase.removeChannel(channel) }
   }, [user?.id, load])
 
-    const acceptOrder = async (o) => {
-    await supabase.from('orders').update({ rider_id: profile.id, rider_name: profile?.full_name, status: 'Delivering' }).eq('id', o.id)
+       const acceptOrder = async (o) => {
+    const { data: updated, error } = await supabase
+      .from('orders')
+      .update({ rider_id: profile.id, rider_name: profile?.full_name, status: 'Delivering' })
+      .eq('id', o.id)
+      .is('rider_id', null)
+      .select()
+    if (error) {
+      toast({ title: 'Could not accept order: ' + error.message, variant: 'destructive' })
+      load()
+      return
+    }
+    if (!updated || updated.length === 0) {
+      toast({ title: 'Order was already taken or RLS blocked the update. Check your Supabase UPDATE policy.', variant: 'destructive' })
+      load()
+      return
+    }
     await supabase.from('notifications').insert({ title: 'Rider Assigned', message: `${profile?.full_name} is delivering order #${o.order_number || o.id?.slice(-6)}`, type: 'rider', order_number: o.order_number, buyer_name: o.buyer_name, read: false })
     toast({ title: 'Order accepted — marked as Delivering' })
     load()
   }
-
   const uploadProof = async (e, orderId) => {
     const file = e.target.files?.[0]
     if (!file) return
