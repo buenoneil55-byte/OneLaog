@@ -1,0 +1,1 @@
+export const BRGYS = ['Banaban','Baybay','Binagbag','Donacion','Encanto','Laog','Marungko','Niugan','Paltok','Pulong Yantok','San Roque','Santa Cruz','Santa Lucia','Santo Cristo','Sulucan','Taboc']

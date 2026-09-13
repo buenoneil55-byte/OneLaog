@@ -4,6 +4,7 @@ import { supabase } from '@/api/supabaseClient'
 import { useLang } from '@/lib/LanguageContext'
 import BottomNav from '@/components/BottomNav'
 import ReviewDialog from '@/components/ReviewDialog'
+import RiderReviewDialog from '@/components/RiderReviewDialog'
 
 export default function History() {
   const { t } = useLang()
@@ -13,6 +14,8 @@ export default function History() {
   const [reviewProduct, setReviewProduct] = useState(null)
   const [reviewOrder, setReviewOrder] = useState(null)
   const [reviewed, setReviewed] = useState({})
+  const [riderReviewed, setRiderReviewed] = useState({})
+  const [riderReviewOrder, setRiderReviewOrder] = useState(null)
 
   useEffect(() => { load() }, [])
   const load = async () => {
@@ -22,8 +25,12 @@ export default function History() {
     setOrders((allOrders || []).filter((o) => o.status === 'Done' || o.status === 'Cancelled'))
     const { data: reviews } = await supabase.from('reviews').select('*').eq('buyer_id', user.id)
     const m = {}
-      ; (reviews || []).forEach((r) => (m[`${r.order_id}_${r.product_id}`] = r))
+    ;(reviews || []).forEach((r) => (m[`${r.order_id}_${r.product_id}`] = r))
     setReviewed(m)
+    const { data: rReviews } = await supabase.from('rider_reviews').select('*').eq('buyer_id', user.id)
+    const rm = {}
+    ;(rReviews || []).forEach((r) => (rm[r.order_id] = r))
+    setRiderReviewed(rm)
     setLoading(false)
   }
 
@@ -60,11 +67,21 @@ export default function History() {
                     )
                   })}
                 </div>
+                {order.status === 'Done' && order.rider_name && (
+                  <div className="row between" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #f0f0f0' }}>
+                    <span className="tiny muted"><Bike size={12} className="green-icon" /> Rate rider: {order.rider_name}</span>
+                    {riderReviewed[order.id] ? (
+                      <span className="rated"><Star size={12} className="star active" />{riderReviewed[order.id].rating}</span>
+                    ) : (
+                      <button className="rate-btn" onClick={() => setRiderReviewOrder(order)}>Rate Rider</button>
+                    )}
+                  </div>
+                )}
                 <div className="total-bar"><span className="muted">{t('cart.total')}</span><strong>₱{Number(order.total).toFixed(2)}</strong></div>
                 {order.status === 'Done' && order.delivery_proof_url && (
                   <div style={{ marginTop: 8 }}>
                     <p className="tiny muted">Delivery Proof (click to enlarge):</p>
-                    <a href={order.delivery_proof_url} target="_blank" rel="noopener noreferrer">
+                    <a href__={order.delivery_proof_url} target="_blank" rel="noopener noreferrer">
                       <img src={order.delivery_proof_url} alt="Proof" style={{ width: '100%', borderRadius: 8, marginTop: 4, cursor: 'pointer' }} />
                     </a>
                   </div>
@@ -72,7 +89,8 @@ export default function History() {
               </div>
             ))}
       </div>
-      <ReviewDialog open={!!reviewProduct} onClose={load} product={reviewProduct} order={reviewOrder} user={user} />
+         <ReviewDialog open={!!reviewProduct} onClose={() => { setReviewProduct(null); setReviewOrder(null); load() }} product={reviewProduct} order={reviewOrder} user={user} />
+      <RiderReviewDialog open={!!riderReviewOrder} onClose={() => { setRiderReviewOrder(null); load() }} order={riderReviewOrder} user={user} />
       <BottomNav />
     </div>
   )

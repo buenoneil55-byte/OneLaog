@@ -24,6 +24,8 @@ import AdminMembers from './pages/AdminMembers'
 import AdminSettings from './pages/AdminSettings'
 import AdminChats from './pages/AdminChats'
 import RiderDashboard from './pages/RiderDashboard'
+import RiderReport from './pages/RiderReport'
+import AdminFeedback from './pages/AdminFeedback'
 
 function NotFound() { return <div className="center-screen"><h2>Page not found</h2></div> }
 
@@ -56,7 +58,9 @@ export default function App() {
                 <Route path="/admin/members" element={<AdminMembers />} />
                 <Route path="/admin/chats" element={<AdminChats />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
+                <Route path="/admin/riders" element={<RiderReport />} />
                 <Route path="/rider" element={<RiderDashboard />} />
+                <Route path="/admin/feedback" element={<AdminFeedback />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

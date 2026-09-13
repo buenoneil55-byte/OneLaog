@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Minus, Plus, MapPin, Trash2, CreditCard, Wallet, Banknote, Phone, Upload } from 'lucide-react'
+import { ArrowLeft, Minus, Plus, MapPin, Trash2, Banknote, Wallet, Phone, Upload } from 'lucide-react'
 import { supabase } from '@/api/supabaseClient'
 import { useAuth } from '@/lib/AuthContext'
 import { useLang } from '@/lib/LanguageContext'
 import { useToast } from '@/components/useToast'
 import AddressPicker from '@/components/AddressPicker'
+import { BRGYS } from '@/lib/brgys'
 
 export default function Cart() {
   const { t } = useLang()
@@ -21,18 +22,23 @@ export default function Cart() {
   const [mapLat, setMapLat] = useState(null)
   const [mapLng, setMapLng] = useState(null)
   const [landmark, setLandmark] = useState('')
-  const [gcashProof, setGcashProof] = useState(null)
-  const [gcashRef, setGcashRef] = useState('')
-    const [gcashInfo, setGcashInfo] = useState({ name: '', number: '' })
-  const [deliveryFeeSetting, setDeliveryFeeSetting] = useState(5)
+  const [barangay, setBarangay] = useState('')
+  const [bgyFees, setBgyFees] = useState({})
+  const [gcashQr, setGcashQr] = useState('')
+  const [gcashNumber, setGcashNumber] = useState('')
+  const [gcashName, setGcashName] = useState('')
+  const [proofFile, setProofFile] = useState(null)
+  const [proofPreview, setProofPreview] = useState('')
 
   useEffect(() => { load() }, [])
   const load = async () => {
-    const { data: settings } = await supabase.from('app_settings').select('*').in('key', ['gcash_name', 'gcash_number', 'delivery_fee'])
+    const { data: settings } = await supabase.from('app_settings').select('*').in('key', ['delivery_fees', 'gcash_qr_url', 'gcash_number', 'gcash_name'])
     const s = {}
     ;(settings || []).forEach((x) => (s[x.key] = x.value))
-    setGcashInfo({ name: s.gcash_name || '', number: s.gcash_number || '' })
-    setDeliveryFeeSetting(parseFloat(s.delivery_fee) > 0 ? parseFloat(s.delivery_fee) : 5)
+    try { setBgyFees(s.delivery_fees ? JSON.parse(s.delivery_fees) : {}) } catch (e) { }
+    setGcashQr(s.gcash_qr_url || '')
+    setGcashNumber(s.gcash_number || '')
+    setGcashName(s.gcash_name || '')
     const { data: { user } } = await supabase.auth.getUser()
     const { data } = await supabase.from('cart_items').select('*').eq('buyer_id', user.id)
     setItems(data || [])
@@ -41,7 +47,8 @@ export default function Cart() {
     setMapLat(profile?.delivery_lat || null)
     setMapLng(profile?.delivery_lng || null)
     setLandmark(profile?.landmark || '')
-    setPayment(profile?.preferred_payment === 'Credit/Debit Card' ? 'Card' : (profile?.preferred_payment || 'COD'))
+    setBarangay(profile?.barangay || '')
+    setPayment(profile?.preferred_payment === 'GCash' ? 'GCash' : (profile?.preferred_payment || 'COD'))
     setLoading(false)
   }
 
@@ -61,23 +68,21 @@ export default function Cart() {
     setItems((p) => p.filter((i) => i.id !== item.id))
   }
 
-  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
-    const deliveryFee = items.length > 0 ? deliveryFeeSetting : 0
-  const total = subtotal + deliveryFee
-  const hasAddress = address.trim().length > 0
-  const hasPhone = phone.trim().length >= 10
-  const gcashReady = payment !== 'GCash' || (!!gcashProof && gcashRef.trim().length >= 4)
-  const canCheckout = items.length > 0 && hasAddress && hasPhone && gcashReady && !placing
-
-  const uploadGcashProof = async (e) => {
+  const onProofChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const path = `gcash/${Date.now()}_${file.name}`
-    const { error } = await supabase.storage.from('payment-proofs').upload(path, file)
-    if (error) { toast({ title: 'Upload failed: ' + error.message, variant: 'destructive' }); return }
-    const { data } = supabase.storage.from('payment-proofs').getPublicUrl(path)
-    setGcashProof(data.publicUrl)
+    setProofFile(file)
+    setProofPreview(URL.createObjectURL(file))
   }
+
+  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
+  const deliveryFee = items.length > 0 && barangay ? (parseFloat(bgyFees[barangay]) || 0) : 0
+  const total = subtotal + deliveryFee
+  const hasBrgy = !!barangay
+  const hasAddress = address.trim().length > 0
+  const hasPhone = phone.trim().length >= 10
+  const hasGcashProof = payment !== 'GCash' || !!proofFile
+  const canCheckout = items.length > 0 && hasBrgy && hasAddress && hasPhone && !placing && hasGcashProof && (payment === 'COD' || total >= 100)
 
   const placeOrder = async () => {
     if (!canCheckout) return
@@ -91,28 +96,38 @@ export default function Cart() {
     setPlacing(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (profile?.delivery_address !== address || profile?.landmark !== landmark || profile?.delivery_lat !== mapLat || profile?.delivery_lng !== mapLng)
-        await updateMe({ delivery_address: address, landmark, delivery_lat: mapLat, delivery_lng: mapLng })
+      if (profile?.delivery_address !== address || profile?.landmark !== landmark || profile?.delivery_lat !== mapLat || profile?.delivery_lng !== mapLng || profile?.barangay !== barangay)
+        await updateMe({ delivery_address: address, landmark, delivery_lat: mapLat, delivery_lng: mapLng, barangay })
       if (profile?.phone !== phone) await updateMe({ phone })
 
-      const orderNum = 'ORD' + Date.now().toString().slice(-6)
-      const tax = 0
+      let paymentProofUrl = ''
+      if (payment === 'GCash' && proofFile) {
+        const path = `gcash-proofs/${Date.now()}_${proofFile.name}`
+        const { error: upErr } = await supabase.storage.from('delivery-proofs').upload(path, proofFile)
+        if (upErr) {
+          toast({ title: 'Proof upload failed: ' + upErr.message, variant: 'destructive' })
+          setPlacing(false)
+          return
+        }
+        paymentProofUrl = supabase.storage.from('delivery-proofs').getPublicUrl(path).data.publicUrl
+      }
 
-      const { error: orderError } = await supabase.from('orders').insert({
+      const orderNum = 'ORD' + Date.now().toString().slice(-6)
+      const { data: order, error: orderError } = await supabase.from('orders').insert({
         order_number: orderNum, buyer_id: user.id, buyer_name: profile?.full_name || 'Buyer',
         buyer_phone: phone,
         items: items.map((i) => ({ product_id: i.product_id, product_name: i.product_name, image_url: i.image_url, price: i.price, quantity: i.quantity, unit: i.unit })),
-        delivery_address: address, landmark, delivery_lat: mapLat, delivery_lng: mapLng,
-        subtotal, delivery_fee: deliveryFee, tax, total,
+        delivery_address: address, barangay, landmark, delivery_lat: mapLat, delivery_lng: mapLng,
+        subtotal, delivery_fee: deliveryFee, tax: 0, total,
         status: payment === 'GCash' ? 'Verifying Payment' : 'Pending',
         payment_method: payment,
-        payment_proof_url: gcashProof,
-        gcash_reference_no: gcashRef.trim(),
-        payment_verified: payment !== 'GCash',
-      })
+        payment_verified: false,
+        payment_proof_url: paymentProofUrl || null,
+      }).select().single()
 
       if (orderError) {
         toast({ title: 'Failed to place order', description: orderError.message, variant: 'destructive' })
+        setPlacing(false)
         return
       }
 
@@ -126,7 +141,7 @@ export default function Cart() {
       }
 
       await supabase.from('cart_items').delete().eq('buyer_id', user.id)
-      await supabase.from('notifications').insert({ title: 'New Order Received', message: `Order #${orderNum} from ${profile?.full_name || 'Buyer'} — ₱${total.toFixed(2)}`, type: 'new_order', order_number: orderNum, buyer_name: profile?.full_name || 'Buyer', read: false })
+      await supabase.from('notifications').insert({ title: 'New Order Received', message: `Order #${orderNum} from ${profile?.full_name || 'Buyer'} — ₱${total.toFixed(2)} (${barangay}, fee ₱${deliveryFee.toFixed(2)})`, type: 'new_order', order_number: orderNum, buyer_name: profile?.full_name || 'Buyer', read: false })
 
       toast({ title: 'Order placed!', description: `Order #${orderNum}` })
       navigate('/orders')
@@ -179,23 +194,25 @@ export default function Cart() {
             <h2 className="card-title" style={{ marginBottom: 0 }}>{t('cart.deliveryAddress')}</h2>
             {!hasAddress && <span className="badge-red">{t('cart.required')}</span>}
           </div>
+          <select className="input" style={{ marginTop: 8 }} value={barangay} onChange={(e) => setBarangay(e.target.value)}>
+            <option value="" disabled>Select your barangay (Angat, Bulacan)…</option>
+            {BRGYS.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
           <textarea className="input" rows={2} style={{ marginTop: 8 }} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="House no, Street, Barangay, City" />
           <div style={{ marginTop: 10 }}>
-       <AddressPicker
-  lat={mapLat} lng={mapLng}
-  onPick={async ({ lat, lng }) => {
-    setMapLat(lat); setMapLng(lng)
-    const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('profiles').update({
-      delivery_lat: lat, delivery_lng: lng, delivery_address: address, landmark
-    }).eq('id', user.id)
-  }}
-  landmark={landmark} onLandmark={async (v) => {
-    setLandmark(v)
-    const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('profiles').update({ landmark: v }).eq('id', user.id)
-  }}
-/>
+            <AddressPicker
+              lat={mapLat} lng={mapLng}
+              onPick={async ({ lat, lng }) => {
+                setMapLat(lat); setMapLng(lng)
+                const { data: { user } } = await supabase.auth.getUser()
+                await supabase.from('profiles').update({ delivery_lat: lat, delivery_lng: lng, delivery_address: address, landmark }).eq('id', user.id)
+              }}
+              landmark={landmark} onLandmark={async (v) => {
+                setLandmark(v)
+                const { data: { user } } = await supabase.auth.getUser()
+                await supabase.from('profiles').update({ landmark: v }).eq('id', user.id)
+              }}
+            />
           </div>
         </div>
 
@@ -225,13 +242,20 @@ export default function Cart() {
         {payment === 'GCash' && (
           <div className="card">
             <h2 className="card-title">GCash Payment</h2>
-            <p className="tiny muted">Send exactly <strong>₱{total.toFixed(2)}</strong> to <strong>{gcashInfo.number || '09XX-XXX-XXXX'}</strong>{gcashInfo.name ? <> (<strong>{gcashInfo.name}</strong>)</> : null}, then upload your receipt. The admin will verify it before your order is prepared.</p>
-            <label className="form-label" style={{ marginTop: 8 }}>GCash Reference No.
-              <input className="input" value={gcashRef} onChange={(e) => setGcashRef(e.target.value)} placeholder="e.g. 1234-5678-9012" />
-            </label>
-            <label className="upload-area" style={{ marginTop: 8 }}>
-              {gcashProof ? <img src={gcashProof} className="upload-preview" /> : <div className="upload-placeholder"><Upload size={24} /><p>Upload GCash Receipt</p></div>}
-              <input type="file" accept="image/*" onChange={uploadGcashProof} hidden />
+            <p className="tiny muted">Scan the QR below to pay exactly <strong>₱{total.toFixed(2)}</strong> to {gcashName || 'our GCash account'} ({gcashNumber}). After paying, upload a screenshot of your GCash receipt below. Your order stays "Verifying Payment" until the admin confirms it. Minimum for GCash is ₱100.</p>
+            {gcashQr ? (
+              <div style={{ textAlign: 'center', margin: '12px 0' }}>
+                <img src={gcashQr} alt="GCash QR" style={{ width: 220, height: 220, borderRadius: 12, objectFit: 'cover' }} />
+                <p className="tiny muted" style={{ marginTop: 6 }}>{gcashName} · {gcashNumber}</p>
+              </div>
+            ) : (
+              <p className="tiny muted center-text">GCash QR not yet set by the admin. Please choose Cash on Delivery or contact support.</p>
+            )}
+            <label className="form-label" style={{ marginTop: 8 }}>Upload GCash Payment Receipt
+              <label className="upload-area" style={{ marginTop: 8, cursor: 'pointer' }}>
+                {proofPreview ? <img src={proofPreview} className="upload-preview" /> : <div className="upload-placeholder"><Upload size={24} /><p>Upload Receipt Screenshot</p></div>}
+                <input type="file" accept="image/*" onChange={onProofChange} hidden />
+              </label>
             </label>
           </div>
         )}
@@ -239,15 +263,18 @@ export default function Cart() {
         <div className="card">
           <h2 className="card-title">{t('cart.orderInfo')}</h2>
           <div className="info-row"><span>{t('cart.subtotal')}</span><span>₱{subtotal.toFixed(2)}</span></div>
-          <div className="info-row"><span>{t('cart.delivery')}</span><span>₱{deliveryFee.toFixed(2)}</span></div>
+          <div className="info-row"><span>{t('cart.delivery')} {barangay && `(${barangay})`}</span><span>₱{deliveryFee.toFixed(2)}</span></div>
           <div className="info-row total-row"><span>{t('cart.total')}</span><strong>₱{total.toFixed(2)}</strong></div>
         </div>
 
         <button className="btn-primary checkout-btn" disabled={!canCheckout} onClick={placeOrder}>
           {placing ? t('cart.placing')
+            : !hasBrgy ? 'Select your barangay to continue'
             : !hasAddress ? t('cart.enterAddress')
             : !hasPhone ? 'Enter contact number to continue'
-            : payment === 'GCash' && !gcashReady ? 'Upload GCash receipt to continue'
+            : payment === 'GCash' && total < 100 ? 'GCash requires a minimum order of ₱100'
+            : payment === 'GCash' && !proofFile ? 'Upload your GCash receipt to continue'
+            : payment === 'GCash' ? `Place Order (₱${total.toFixed(2)})`
             : `${t('cart.checkout')} (₱${total.toFixed(2)})`}
         </button>
       </div>

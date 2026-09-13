@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ShoppingBag, LayoutDashboard, Package, ClipboardList, Users, BarChart3, MessageSquare, Settings, LogOut } from 'lucide-react'
+import { ShoppingBag, LayoutDashboard, Package, ClipboardList, Users, BarChart3, MessageSquare, Settings, LogOut, Bike, Star } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 
 const nav = [
@@ -11,6 +11,9 @@ const nav = [
     { to: '/admin/sales-report', label: 'Sales Report', icon: BarChart3 },
     { to: '/admin/chats', label: 'Support Chats', icon: MessageSquare },
     { to: '/admin/settings', label: 'Settings', icon: Settings },
+       { to: '/admin/riders', label: 'Rider Report', icon: Bike },
+    { to: '/admin/feedback', label: 'Feedback', icon: Star },
+
 ]
 
 export default function AdminLayout({ title, children }) {

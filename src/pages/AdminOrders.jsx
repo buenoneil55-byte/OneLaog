@@ -7,6 +7,7 @@ import { MapPin, Phone, User, Search, CheckCircle } from 'lucide-react'
 
 const statuses = ['Verifying Payment', 'Pending', 'Preparing', 'Delivering', 'Done', 'Cancelled']
 const statusFlow = ['Verifying Payment', 'Pending', 'Preparing', 'Delivering', 'Done']
+const statusLabel = (s) => s === 'Done' ? 'Delivered' : s
 
 export default function AdminOrders() {
   const { toast } = useToast()
@@ -66,7 +67,7 @@ export default function AdminOrders() {
       </div>
 
       <div className="tabs">
-        {[{ id: 'all', label: 'All' }, ...statuses.map((s) => ({ id: s, label: s }))].map((t) => (
+        {[{ id: 'all', label: 'All' }, ...statuses.map((s) => ({ id: s, label: statusLabel(s) }))].map((t) => (
           <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>{t.label}</button>
         ))}
       </div>
@@ -83,7 +84,7 @@ export default function AdminOrders() {
                   <tr key={o.id} className={`orders-table-row ${selectedId === o.id ? 'selected' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setSelectedId(o.id)}>
                     <td>#{o.order_number || o.id?.slice(-6)}</td>
                     <td>{o.buyer_name}</td>
-                    <td><span className={`web-status-pill ${o.status}`}>{o.status}</span></td>
+                    <td><span className={`web-status-pill ${o.status}`}>{statusLabel(o.status)}</span></td>
                     <td style={{ textAlign: 'right' }}>₱{Number(o.total).toFixed(2)}</td>
                   </tr>
                 ))}
@@ -100,7 +101,7 @@ export default function AdminOrders() {
                 <>
                   <div className="row between">
                     <h2 className="card-title" style={{ marginBottom: 0 }}>Order #{o.order_number || o.id?.slice(-6)}</h2>
-                    <span className={`web-status-pill ${o.status}`}>{o.status}</span>
+                    <span className={`web-status-pill ${o.status}`}>{statusLabel(o.status)}</span>
                   </div>
 
                   <div className="web-detail-grid" style={{ marginTop: 10 }}>
@@ -135,7 +136,7 @@ export default function AdminOrders() {
 
                   {o.payment_method === 'GCash' && o.payment_proof_url && (
                     <div className="web-proof-box">
-                      <p className="tiny muted">GCash Receipt (Ref: {o.gcash_reference_no || 'n/a'}):</p>
+                      <p className="tiny muted">GCash Payment Receipt (uploaded by buyer):</p>
                       <a href={o.payment_proof_url} target="_blank" rel="noopener noreferrer">
                         <img src={o.payment_proof_url} alt="GCash proof" className="web-proof-img" style={{ cursor: 'pointer' }} />
                       </a>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Bike, Camera, CheckCircle, MapPin, User, Phone, Package } from 'lucide-react'
+import { Bike, Camera, CheckCircle, MapPin, User, Phone, Package, Calendar } from 'lucide-react'
 import { supabase } from '@/api/supabaseClient'
 import { useAuth } from '@/lib/AuthContext'
 import { useToast } from '@/components/useToast'
@@ -20,7 +20,7 @@ export default function RiderDashboard() {
     if (!profile?.id) return
     const [mine, open] = await Promise.all([
       supabase.from('orders').select('*').eq('rider_id', profile.id).order('created_at', { ascending: false }),
-         supabase.from('orders').select('*').in('status', ['Preparing', 'Delivering']).is('rider_id', null).order('created_at', { ascending: false }),
+      supabase.from('orders').select('*').in('status', ['Preparing', 'Delivering']).is('rider_id', null).order('created_at', { ascending: false }),
     ])
     setOrders(mine.data || [])
     setAvailable(open.data || [])
@@ -38,7 +38,7 @@ export default function RiderDashboard() {
     return () => { supabase.removeChannel(channel) }
   }, [user?.id, load])
 
-       const acceptOrder = async (o) => {
+  const acceptOrder = async (o) => {
     const { data: updated, error } = await supabase
       .from('orders')
       .update({ rider_id: profile.id, rider_name: profile?.full_name, status: 'Delivering' })
@@ -59,6 +59,7 @@ export default function RiderDashboard() {
     toast({ title: 'Order accepted — marked as Delivering' })
     load()
   }
+
   const uploadProof = async (e, orderId) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -88,10 +89,18 @@ export default function RiderDashboard() {
 
   const myActive = orders.filter((o) => o.status === 'Delivering')
   const myDone = orders.filter((o) => o.status === 'Done')
+  const todayStr = new Date().toDateString()
+  const myToday = myDone.filter((o) => o.delivered_at && new Date(o.delivered_at).toDateString() === todayStr)
+  const todayCount = myToday.length
+  const todayProductTotal = myToday.reduce((s, o) => s + (o.subtotal || 0), 0)
+  const todayFeeTotal = myToday.reduce((s, o) => s + (o.delivery_fee || 0), 0)
+  const todayCodTotal = myToday.filter((o) => o.payment_method === 'COD').reduce((s, o) => s + (o.total || 0), 0)
+  const peso = (n) => `₱${Number(n).toFixed(2)}`
 
   const TABS = [
     { id: 'active', label: 'Active', icon: Bike, count: myActive.length },
     { id: 'available', label: 'Available', icon: Package, count: available.length },
+    { id: 'today', label: 'Today', icon: Calendar, count: todayCount },
     { id: 'done', label: 'Done', icon: CheckCircle, count: myDone.length },
   ]
 
@@ -119,13 +128,13 @@ export default function RiderDashboard() {
             myActive.map((o) => (
               <div key={o.id} className="card">
                 <div className="row between">
-      <h3 className="order-num">#{o.order_number || o.id?.slice(-6)}</h3>
+                  <h3 className="order-num">#{o.order_number || o.id?.slice(-6)}</h3>
                   <span className={`status-pill ${o.status}`}>{o.status}</span>
                 </div>
                 <div className="detail-row"><User size={14} className="gray-icon" /><span className="tiny muted">Buyer:</span><span className="medium">{o.buyer_name}</span></div>
                 {o.buyer_phone && <div className="detail-row"><Phone size={14} className="green-icon" /><span className="tiny muted">Phone:</span><span className="medium"><a href__={`tel:${o.buyer_phone}`}>{o.buyer_phone}</a></span></div>}
                 {o.delivery_address && <div className="detail-row"><MapPin size={14} className="purple-icon" /><span className="tiny muted">Address:</span><span className="medium">{o.delivery_address}</span></div>}
-        {o.landmark && <p className="tiny muted">Landmark: {o.landmark}</p>}
+                {o.landmark && <p className="tiny muted">Landmark: {o.landmark}</p>}
                 <div className="detail-row"><span className="tiny muted">Payment:</span><span className="medium">{paymentLabel(o)}</span></div>
                 <DeliveryMap lat={o.delivery_lat} lng={o.delivery_lng} />
                 <div className="order-items">
@@ -157,7 +166,7 @@ export default function RiderDashboard() {
                 </div>
                 <p className="tiny muted"><User size={12} className="gray-icon" /> {o.buyer_name}</p>
                 {o.delivery_address && <p className="tiny muted"><MapPin size={12} className="purple-icon" /> {o.delivery_address}</p>}
-       {o.landmark && <p className="tiny muted">Landmark: {o.landmark}</p>}
+                {o.landmark && <p className="tiny muted">Landmark: {o.landmark}</p>}
                 <p className="tiny muted">Payment: <strong>{paymentLabel(o)}</strong></p>
                 <DeliveryMap lat={o.delivery_lat} lng={o.delivery_lng} />
                 <p className="medium">₱{Number(o.total).toFixed(2)}</p>
@@ -166,34 +175,69 @@ export default function RiderDashboard() {
             ))
           )}
 
-{tab === 'done' && (
-  myDone.length === 0 ? <p className="muted center-text">No completed deliveries yet</p> :
-  myDone.map((o) => (
-    <div key={o.id} className="card">
-      <div className="row between">
-        <h3 className="order-num">#{o.order_number || o.id?.slice(-6)}</h3>
-        <span className="status-pill Done">Done</span>
-      </div>
-      <div className="detail-row"><User size={14} className="gray-icon" /><span className="tiny muted">Buyer:</span><span className="medium">{o.buyer_name}</span></div>
-      {o.buyer_phone && <div className="detail-row"><Phone size={14} className="green-icon" /><span className="tiny muted">Phone:</span><span className="medium"><a href__={`tel:${o.buyer_phone}`}>{o.buyer_phone}</a></span></div>}
-      {o.delivery_address && <div className="detail-row"><MapPin size={14} className="purple-icon" /><span className="tiny muted">Address:</span><span className="medium">{o.delivery_address}</span></div>}
-     {o.landmark && <p className="tiny muted">Landmark: {o.landmark}</p>}
-      <div className="detail-row"><span className="tiny muted">Payment:</span><span className="medium">{paymentLabel(o)}</span></div>
-      <div className="order-items">
-        {o.items?.map((item, i) => (
-          <div key={i} className="info-row"><span>{item.product_name} ×{item.quantity}</span><span>₱{(item.price * item.quantity).toFixed(2)}</span></div>
-        ))}
-      </div>
-      <div className="total-bar"><span className="muted">Total</span><strong className="green">₱{Number(o.total).toFixed(2)}</strong></div>
-      <p className="tiny muted" style={{ marginTop: 6 }}>✅ Delivered: {o.delivered_at ? new Date(o.delivered_at).toLocaleString() : 'n/a'}</p>
-      {o.delivery_proof_url && (
-        <a href={o.delivery_proof_url} target="_blank" rel="noopener noreferrer">
-          <img src={o.delivery_proof_url} alt="Proof" style={{ width: '100%', borderRadius: 8, marginTop: 8, cursor: 'pointer' }} />
-        </a>
-      )}
-    </div>
-  ))
-)}
+          {tab === 'today' && (
+            <>
+              <div className="web-stats-grid">
+                <div className="web-stat-card"><p className="stat-label">Deliveries Today</p><p className="web-stat-value">{todayCount}</p></div>
+                <div className="web-stat-card"><p className="stat-label">Product Amount</p><p className="web-stat-value">{peso(todayProductTotal)}</p></div>
+                <div className="web-stat-card"><p className="stat-label">Delivery Fees</p><p className="web-stat-value">{peso(todayFeeTotal)}</p></div>
+                <div className="web-stat-card yellow"><p className="stat-label">COD to Turn Over</p><p className="web-stat-value">{peso(todayCodTotal)}</p></div>
+              </div>
+              {myToday.length === 0 ? <p className="muted center-text" style={{ marginTop: 12 }}>No deliveries completed today yet</p> :
+                myToday.map((o) => (
+                  <div key={o.id} className="card" style={{ marginTop: 12 }}>
+                    <div className="row between">
+                      <h3 className="order-num">#{o.order_number || o.id?.slice(-6)}</h3>
+                      <span className="status-pill Done">Done</span>
+                    </div>
+                    <div className="detail-row"><User size={14} className="gray-icon" /><span className="tiny muted">Buyer:</span><span className="medium">{o.buyer_name}</span></div>
+                    {o.delivery_address && <div className="detail-row"><MapPin size={14} className="purple-icon" /><span className="tiny muted">Address:</span><span className="medium">{o.delivery_address}</span></div>}
+                    <div className="detail-row"><span className="tiny muted">Payment:</span><span className="medium">{paymentLabel(o)}</span></div>
+                    <div className="order-items">
+                      {o.items?.map((item, i) => (
+                        <div key={i} className="info-row"><span>{item.product_name} ×{item.quantity}</span><span>₱{(item.price * item.quantity).toFixed(2)}</span></div>
+                      ))}
+                    </div>
+                    <div className="total-bar"><span className="muted">Total</span><strong className="green">{peso(o.total)}</strong></div>
+                    <p className="tiny muted" style={{ marginTop: 6 }}>✅ Delivered: {o.delivered_at ? new Date(o.delivered_at).toLocaleString() : 'n/a'}</p>
+                    {o.delivery_proof_url && (
+                      <a href__={o.delivery_proof_url} target="_blank" rel="noopener noreferrer">
+                        <img src={o.delivery_proof_url} alt="Proof" style={{ width: '100%', borderRadius: 8, marginTop: 8, cursor: 'pointer' }} />
+                      </a>
+                    )}
+                  </div>
+                ))}
+            </>
+          )}
+
+          {tab === 'done' && (
+            myDone.length === 0 ? <p className="muted center-text">No completed deliveries yet</p> :
+            myDone.map((o) => (
+              <div key={o.id} className="card">
+                <div className="row between">
+                  <h3 className="order-num">#{o.order_number || o.id?.slice(-6)}</h3>
+                  <span className="status-pill Done">Done</span>
+                </div>
+                <div className="detail-row"><User size={14} className="gray-icon" /><span className="tiny muted">Buyer:</span><span className="medium">{o.buyer_name}</span></div>
+                {o.buyer_phone && <div className="detail-row"><Phone size={14} className="green-icon" /><span className="tiny muted">Phone:</span><span className="medium"><a href__={`tel:${o.buyer_phone}`}>{o.buyer_phone}</a></span></div>}
+                {o.delivery_address && <div className="detail-row"><MapPin size={14} className="purple-icon" /><span className="tiny muted">Address:</span><span className="medium">{o.delivery_address}</span></div>}
+                {o.landmark && <p className="tiny muted">Landmark: {o.landmark}</p>}
+                <div className="detail-row"><span className="tiny muted">Payment:</span><span className="medium">{paymentLabel(o)}</span></div>
+                <div className="order-items">
+                  {o.items?.map((item, i) => (
+                    <div key={i} className="info-row"><span>{item.product_name} ×{item.quantity}</span><span>₱{(item.price * item.quantity).toFixed(2)}</span></div>
+                  ))}
+                </div>
+                <div className="total-bar"><span className="muted">Total</span><strong className="green">₱{Number(o.total).toFixed(2)}</strong></div>
+                <p className="tiny muted" style={{ marginTop: 6 }}>✅ Delivered: {o.delivered_at ? new Date(o.delivered_at).toLocaleString() : 'n/a'}</p>
+                {o.delivery_proof_url && (
+                  <a href__={o.delivery_proof_url} target="_blank" rel="noopener noreferrer">
+                    <img src={o.delivery_proof_url} alt="Proof" style={{ width: '100%', borderRadius: 8, marginTop: 8, cursor: 'pointer' }} />
+                  </a>
+                )}
+              </div>
+            ))
+          )}
         </>}
       </div>
       <BottomNav />

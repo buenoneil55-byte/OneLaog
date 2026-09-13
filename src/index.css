@@ -2309,3 +2309,29 @@ select {
 .chat-thread .chat-bubble-row.me { justify-content: flex-end; }
 .chat-thread .chat-bubble-row.them { justify-content: flex-start; }
 .chat-bubble { max-width: 78%; } 
+
+
+.print-only { display: none; }
+@media print {
+  .admin-web-sidebar, .admin-web-topbar, .web-logout, .no-print { display: none !important; }
+  .admin-web-layout { display: block !important; }
+  .admin-web-main, .admin-web-body { padding: 0 !important; }
+  .print-only { display: block !important; }
+  body { background: #fff !important; }
+  .card { box-shadow: none !important; border: 1px solid #ddd; break-inside: avoid; }
+}
+
+
+/* rating dialog fixes */
+.overlay { z-index: 9999; }
+.sheet { position: relative; }
+.sheet-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+}
